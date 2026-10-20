@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Task Manager - 3 Tier App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 650px; margin: 40px auto; padding: 0 15px; }
+    input { padding: 8px; width: 60%; }
+    button { padding: 6px 10px; margin-left: 4px; cursor: pointer; }
+    li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 6px; list-style: none; }
+    ul { padding: 0; }
+    .done { text-decoration: line-through; color: gray; }
+    span { display: inline-block; min-width: 260px; }
+  </style>
+</head>
+<body>
+  <h2>Task Manager (3-Tier CRUD App)</h2>
+  <form id="f">
+    <input id="title" placeholder="New task" required>
+    <button>Add</button>
+  </form>
+  <ul id="list"></ul>
+
+  <script>
+    const api = '/api/tasks';
+    const json = { 'Content-Type': 'application/json' };
+
+    async function load() {
+      const tasks = await (await fetch(api)).json();
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      tasks.forEach(t => {
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.textContent = t.title;
+        if (t.status === 'done') span.className = 'done';
+
+        const toggle = document.createElement('button');
+        toggle.textContent = t.status === 'done' ? 'Undo' : 'Done';
+        toggle.onclick = async () => {
+          await fetch(`${api}/${t.id}`, { method: 'PUT', headers: json,
+            body: JSON.stringify({ title: t.title, status: t.status === 'done' ? 'pending' : 'done' }) });
+          load();
+        };
+
+        const edit = document.createElement('button');
+        edit.textContent = 'Edit';
+        edit.onclick = async () => {
+          const nt = prompt('Edit task', t.title);
+          if (!nt) return;
+          await fetch(`${api}/${t.id}`, { method: 'PUT', headers: json,
+            body: JSON.stringify({ title: nt, status: t.status }) });
+          load();
+        };
+
+        const del = document.createElement('button');
+        del.textContent = 'Delete';
+        del.onclick = async () => { await fetch(`${api}/${t.id}`, { method: 'DELETE' }); load(); };
+
+        li.append(span, toggle, edit, del);
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('f').onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      await fetch(api, { method: 'POST', headers: json, body: JSON.stringify({ title }) });
+      e.target.reset();
+      load();
+    };
+    load();
+  </script>
+</body>
+</html>
