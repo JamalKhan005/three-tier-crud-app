@@ -1,61 +1,168 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Task Manager - 3 Tier App</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 650px; margin: 40px auto; padding: 0 15px; }
-    input { padding: 8px; width: 60%; }
-    button { padding: 6px 10px; margin-left: 4px; cursor: pointer; }
-    li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 6px; list-style: none; }
-    ul { padding: 0; }
-    .done { text-decoration: line-through; color: gray; }
-    span { display: inline-block; min-width: 260px; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 50px 15px;
+    }
+    .card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 640px;
+      border-radius: 16px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(90deg, #4338ca, #7c3aed);
+      color: #fff;
+      padding: 26px 28px;
+    }
+    .header h1 { margin: 0; font-size: 26px; }
+    .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.85; }
+    .badge {
+      display: inline-block;
+      background: #fbbf24;
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .body { padding: 24px 28px 28px; }
+    form { display: flex; gap: 10px; margin-bottom: 20px; }
+    input {
+      flex: 1;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #7c3aed; }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    button:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-add { background: #7c3aed; padding: 12px 20px; border-radius: 10px; }
+    .btn-done { background: #10b981; }
+    .btn-undo { background: #6b7280; }
+    .btn-edit { background: #3b82f6; }
+    .btn-del  { background: #ef4444; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      background: #f9fafb;
+      border-left: 5px solid #f59e0b;
+      border-radius: 10px;
+    }
+    li.is-done { border-left-color: #10b981; background: #ecfdf5; }
+    .task-title { flex: 1; font-size: 16px; color: #111827; word-break: break-word; }
+    li.is-done .task-title { text-decoration: line-through; color: #6b7280; }
+    .empty { text-align: center; color: #9ca3af; padding: 24px 0; }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      padding: 0 0 20px;
+    }
   </style>
 </head>
 <body>
-  <h2>Task Manager v1 (3-Tier CRUD App)</h2>
-  <form id="f">
-    <input id="title" placeholder="New task" required>
-    <button>Add</button>
-  </form>
-  <ul id="list"></ul>
+  <div class="card">
+    <div class="header">
+      <h1>Task Manager <span class="badge">v2</span></h1>
+      <p>3-Tier CRUD App &bull; Nginx + Node.js + MariaDB &bull; Deployed by Jenkins</p>
+    </div>
+    <div class="body">
+      <form id="f">
+        <input id="title" placeholder="What needs to be done?" required>
+        <button class="btn-add">Add</button>
+      </form>
+      <ul id="list"></ul>
+    </div>
+    <div class="footer">Auto-deployed with Jenkins CI/CD pipeline</div>
+  </div>
 
   <script>
     const api = '/api/tasks';
     const json = { 'Content-Type': 'application/json' };
 
+    function makeButton(text, cls, handler) {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.className = cls;
+      b.onclick = handler;
+      return b;
+    }
+
     async function load() {
       const tasks = await (await fetch(api)).json();
       const list = document.getElementById('list');
       list.innerHTML = '';
+
+      if (tasks.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No tasks yet. Add your first one above!';
+        list.appendChild(empty);
+        return;
+      }
+
       tasks.forEach(t => {
         const li = document.createElement('li');
+        if (t.status === 'done') li.className = 'is-done';
+
         const span = document.createElement('span');
+        span.className = 'task-title';
         span.textContent = t.title;
-        if (t.status === 'done') span.className = 'done';
 
-        const toggle = document.createElement('button');
-        toggle.textContent = t.status === 'done' ? 'Undo' : 'Done';
-        toggle.onclick = async () => {
-          await fetch(`${api}/${t.id}`, { method: 'PUT', headers: json,
-            body: JSON.stringify({ title: t.title, status: t.status === 'done' ? 'pending' : 'done' }) });
-          load();
-        };
+        const toggle = makeButton(
+          t.status === 'done' ? 'Undo' : 'Done',
+          t.status === 'done' ? 'btn-undo' : 'btn-done',
+          async () => {
+            await fetch(`${api}/${t.id}`, { method: 'PUT', headers: json,
+              body: JSON.stringify({ title: t.title, status: t.status === 'done' ? 'pending' : 'done' }) });
+            load();
+          });
 
-        const edit = document.createElement('button');
-        edit.textContent = 'Edit';
-        edit.onclick = async () => {
+        const edit = makeButton('Edit', 'btn-edit', async () => {
           const nt = prompt('Edit task', t.title);
           if (!nt) return;
           await fetch(`${api}/${t.id}`, { method: 'PUT', headers: json,
             body: JSON.stringify({ title: nt, status: t.status }) });
           load();
-        };
+        });
 
-        const del = document.createElement('button');
-        del.textContent = 'Delete';
-        del.onclick = async () => { await fetch(`${api}/${t.id}`, { method: 'DELETE' }); load(); };
+        const del = makeButton('Delete', 'btn-del', async () => {
+          await fetch(`${api}/${t.id}`, { method: 'DELETE' });
+          load();
+        });
 
         li.append(span, toggle, edit, del);
         list.appendChild(li);
